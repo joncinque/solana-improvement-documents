@@ -227,6 +227,42 @@ If the new delegation amount is 0, then `delegation.deactivation_epoch`
 (absolute offset `[172,180)`) MUST be set to the rewarded epoch, expressed as a
 little-endian unsigned 64-bit integer.
 
+#### Adjustment edge cases
+
+Given a new rent-exempt minimum `R`, increased at the epoch boundary, here are
+the possible outcomes for delegation amounts after distribution.
+
+<!-- markdownlint-disable MD013 -->
+| Description | Total lamports before | Delegation before | Inflation reward | Extra lamports | Total lamports after | Delegation after |
+| --- | --- | --- | --- | --- | --- | --- |
+| Exempt, rewarded | R + 1 | 1 | 1 | 0 | R + 2 | 2 |
+| Exempt, capped | R + 1 | 1 | 1 | 1 | R + 3 | 2 |
+| Not adjusted, extra lamports cover rent difference | R | 1 | 0 | 1 | R + 1 | 1 |
+| Not adjusted, lamports cover rent difference, with inflation | R | 1 | 1 | 1 | R + 2 | 2 |
+| *NEW* Deactivated, rent-exempt after distribution | R | 1 | 0 | 0 | R | 0 |
+| *NEW* Deactivated, not rent-exempt after distribution | R - 1 | 1 | 0 | 0 | R - 1 | 0 |
+| *NEW* Adjusted, inflation covers rent difference | R | 1 | 1 | 0 | R + 1 | 1 |
+| *NEW* Adjusted, inflation partially covers rent difference | R - 1 | 1 | 2 | 0 | 2 |
+<!-- markdownlint-restore -->
+
+#### Unrewarded stake accounts included in partitioned epoch rewards
+
+If a stake account does not receive rewards, but requires a delegation
+adjustment during the calculation phase, it MUST be included as a reward
+recipient during partitioned epoch rewards.
+
+If one of these stake accounts is credited enough lamports between calculation
+and distribution to meet the new rent-exempt minimum, no adjustment takes place.
+
+This table summarizes how to include stake accounts if rent is increased:
+
+| Meets new rent-exempt minimum | Receives rewards | Outcome |
+| --- | --- | --- |
+| Yes | Yes | Included, delegation increased by inflation reward amount |
+| Yes | No | Not included, not adjusted |
+| No | Yes | Included, may be adjusted at distribution |
+| No | No | *NEW* Included, may be adjusted at distribution |
+
 ## Alternatives Considered
 
 ### Always enforce current rent price post-execution
